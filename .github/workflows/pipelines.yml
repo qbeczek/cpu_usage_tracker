@@ -1,0 +1,55 @@
+name: build CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    container:
+      image: qbejk/ci:latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: build application
+      run: |
+          cmake -S . -B build 
+          cmake --build build --target all -j 9
+  format_check:
+    name: check_formatting
+    runs-on: ubuntu-latest
+    container:
+      image: qbejk/ci:latest  
+    needs: build  
+    steps:
+    - uses: actions/checkout@v3
+    - name: check formatting
+      run: |
+            ls -la
+            apt-get install clang-format -y
+            CLANG_FILES=$(find . -type f -regex '.*\.\(c\|h\|cpp\|hpp\)$') 
+            echo $CLANG_FILES
+            echo $CLANG_FILES | xargs clang-format --style='{"BasedOnStyle":"google", "IndentWidth":"4"}' --dry-run --Werror --sort-includes
+  cppcheck:
+    name: cppcheck
+    runs-on: ubuntu-latest
+    container:
+      image: qbejk/ci:latest
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+    - name: cppcheck
+      run:
+        cppcheck --enable=all --platform=native --error-exitcode=1 .
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    container:
+      image: qbejk/ci:latest
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+    - name: tests
+      run: |
+        cmake -S . -B build 
+        cmake --build build --target all -j 9
+        cmake --build build --target test
